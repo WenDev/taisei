@@ -1,0 +1,8 @@
+#ifndef I_PBR_H
+#define I_PBR_H
+
+#include "standard.glslh"
+
+VARYING(3) vec3 pos;
+
+#endif

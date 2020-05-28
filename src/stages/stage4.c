@@ -78,10 +78,10 @@ static bool stage4_fog(Framebuffer *fb) {
 
 	r_shader("zbuf_fog");
 	r_uniform_sampler("depth", r_framebuffer_get_attachment(fb, FRAMEBUFFER_ATTACH_DEPTH));
-	r_uniform_vec4("fog_color", 10.0*f, 0.0, 0.1-f, 1.0);
+	r_uniform_vec4("fog_color", 9.0*f+0.1, 0.0, 0.1-f, 1.0);
 	r_uniform_float("start", 0.4);
-	r_uniform_float("end", 0.8);
-	r_uniform_float("exponent", 4.0);
+	r_uniform_float("end", 1);
+	r_uniform_float("exponent", 50.0);
 	r_uniform_float("sphereness", 0);
 	draw_framebuffer_tex(fb, VIEWPORT_W, VIEWPORT_H);
 	r_shader_standard();
@@ -89,54 +89,56 @@ static bool stage4_fog(Framebuffer *fb) {
 	return true;
 }
 
-static uint stage4_fountain_pos(Stage3D *s3d, vec3 pos, float maxrange) {
-	vec3 p = {0, 400, 1500};
-	vec3 r = {0, 0, 3000};
-
-	uint num = linear3dpos(s3d, pos, maxrange, p, r);
-
-	for(uint i = 0; i < num; ++i) {
-		if(s3d->pos_buffer[i][2] > 0) {
-			s3d->pos_buffer[i][2] = -9000;
-		}
-	}
-
-	return num;
-}
-
-static void stage4_fountain_draw(vec3 pos) {
-	r_uniform_sampler("tex", "stage2/border");
-	r_mat_mv_push();
-	r_mat_mv_translate(pos[0], pos[1], pos[2]);
-	r_mat_mv_rotate(-M_PI/2, 1, 0, 0);
-	r_mat_mv_scale(1000, 3010, 1);
-	r_draw_quad();
-	r_mat_mv_pop();
-}
 
 static uint stage4_lake_pos(Stage3D *s3d, vec3 pos, float maxrange) {
-	vec3 p = {0, 600, 0};
+	vec3 p = {0, 200, 0};
 	return single3dpos(s3d, pos, maxrange, p);
 }
 
 static void stage4_lake_draw(vec3 pos) {
-	r_uniform_sampler("tex", "stage4/lake");
-	r_mat_mv_push();
-	r_mat_mv_translate(pos[0], pos[1]+140, pos[2]);
-	r_mat_mv_scale(15, 15, 15);
-	r_draw_model("lake");
-	r_mat_mv_pop();
-
-	r_uniform_sampler("tex", "stage4/mansion");
 	r_mat_mv_push();
 	r_mat_mv_translate(pos[0], pos[1] + 944, pos[2] + 50);
 	r_mat_mv_scale(30, 30, 30);
-	r_draw_model("mansion");
+	r_shader("pbr");
+	r_uniform_vec3_array("camera_pos", 0, 1, &stage_3d_context.cx);
+	//r_uniform_vec3_array("light_positions[0]", 0, 1, &stage_3d_context.cx);
+
+	vec3 light_colors[] = {
+		{2e5, 1e5, 3e5},
+		{1e4, 2e4, 5e5},
+	};
+
+	vec3 light_positions[] = {
+		{0, stage_3d_context.cx[1]+20,stage_3d_context.cx[2]+10},
+		{0,0,2000},
+	};
+
+		
+	r_uniform_vec3_array("light_positions[0]", 0, ARRAY_SIZE(light_positions), light_positions);
+	r_uniform_vec3_array("light_colors[0]", 0, ARRAY_SIZE(light_colors), light_colors);
+	
+	r_uniform_float("metallic", 0);
+	r_uniform_sampler("tex", "stage4/ground_diffuse");
+	r_uniform_sampler("roughness_map", "stage4/ground_roughness");
+	r_uniform_sampler("normal_map", "stage4/ground_normal");
+	r_uniform_sampler("ambient_map", "stage4/ground_ambient");
+
+
+	r_draw_model("stage4/ground");
+	
+	r_uniform_float("metallic", 0);
+	r_uniform_sampler("tex", "stage4/mansion_diffuse");
+	r_uniform_sampler("roughness_map", "stage4/mansion_roughness");
+	r_uniform_sampler("normal_map", "stage4/mansion_normal");
+	r_uniform_sampler("ambient_map", "stage4/mansion_ambient");
+
+	r_draw_model("stage4/mansion");
 	r_mat_mv_pop();
+	r_shader_standard();
 }
 
 static uint stage4_corridor_pos(Stage3D *s3d, vec3 pos, float maxrange) {
-	vec3 p = {0, 2400, 50};
+	vec3 p = {0, 2700, 60};
 	vec3 r = {0, 2000, 0};
 
 	uint num = linear3dpos(s3d, pos, maxrange, p, r);
@@ -204,18 +206,51 @@ static void stage4_corridor_draw(vec3 pos) {
 	r_state_pop();
 }
 
+
+
+TASK(upgrade_stage_3d, NO_ARGS) {
+	for(;;) {
+		YIELD;
+		stage3d_update(&stage_3d_context);
+	}
+}
+
+TASK(animate_bg_fullstage, NO_ARGS) {
+	stage_3d_context.cx[2] = 0;
+	stage_3d_context.cx[1] = 150;
+	stage_3d_context.crot[0] = 80;
+	
+	stage_3d_context.cv[1] = 0.5;
+	stage_3d_context.cv[2] = 0.22;
+
+	WAIT(400);
+	for(int i = 0; i < 200; i++) {
+		YIELD;
+		fapproach_p(&stage_3d_context.cv[1], 0.4f, 0.002f);
+		fapproach_p(&stage_3d_context.cv[2], 0.0f, 0.002f);
+	}
+	WAIT(600);
+	for(int i = 0; i < 200; i++) {
+		YIELD;
+		fapproach_p(&stage_3d_context.cv[2], 0.1f, 0.002f);
+	}
+	WAIT(1000);
+	for(int i = 0; i < 400; i++) {
+		YIELD;
+		fapproach_p(&stage_3d_context.cv[2], -0.1f, 0.002f);
+	}
+	for(;;) {
+		YIELD;
+		fapproach_p(&stage_3d_context.cv[1], 0.2f, 0.01f);
+		fapproach_p(&stage_3d_context.cv[2], 0.0f, 0.01f);
+	}
+}
+
+
 static void stage4_start(void) {
 	stage3d_init(&stage_3d_context, 16);
-
-	stage_3d_context.cx[2] = -10000;
-	stage_3d_context.cv[2] = 19.7;
-	stage_3d_context.crot[0] = 80;
-
-	// for testing
-//  stage_3d_context.cx[1] = 2000;
-//  stage_3d_context.cx[2] = 130;
-//  stage_3d_context.cv[1] = 10;
-//  stage_3d_context.crot[0] = 80;
+	INVOKE_TASK(upgrade_stage_3d);
+	INVOKE_TASK(animate_bg_fullstage);
 }
 
 static void stage4_preload(void) {
@@ -223,11 +258,14 @@ static void stage4_preload(void) {
 	portrait_preload_face_sprite("kurumi", "normal", RESF_DEFAULT);
 	preload_resources(RES_BGM, RESF_OPTIONAL, "stage4", "stage4boss", NULL);
 	preload_resources(RES_SPRITE, RESF_DEFAULT,
-		"stage2/border", // Stage 2 is intentional!
 		"stage4/kurumibg1",
 		"stage4/kurumibg2",
-		"stage4/lake",
-		"stage4/mansion",
+		"stage4/ground_diffuse",
+		"stage4/ground_roughness",
+		"stage4/ground_normal",
+		"stage4/mansion_diffuse",
+		"stage4/mansion_roughness",
+		"stage4/mansion_normal",
 		"stage4/planks",
 		"stage4/wall",
 	NULL);
@@ -245,8 +283,7 @@ static void stage4_preload(void) {
 		"boss/kurumi",
 	NULL);
 	preload_resources(RES_MODEL, RESF_DEFAULT,
-		"mansion",
-		"lake",
+		"stage4/mansion",
 	NULL);
 	preload_resources(RES_TEXTURE, RESF_OPTIONAL,
 		"part/sinewave",
@@ -267,11 +304,10 @@ static void stage4_end(void) {
 }
 
 static void stage4_draw(void) {
-	r_mat_proj_perspective(STAGE3D_DEFAULT_FOVY, STAGE3D_DEFAULT_ASPECT, 130, 3000);
+	r_mat_proj_perspective(STAGE3D_DEFAULT_FOVY, STAGE3D_DEFAULT_ASPECT, 30, 3000);
 
 	Stage3DSegment segs[] = {
 		{ stage4_lake_draw, stage4_lake_pos },
-		{ stage4_fountain_draw, stage4_fountain_pos },
 		{ stage4_corridor_draw, stage4_corridor_pos },
 	};
 
@@ -279,19 +315,6 @@ static void stage4_draw(void) {
 }
 
 static void stage4_update(void) {
-	stage3d_update(&stage_3d_context);
-
-	if(stage_3d_context.cx[2] >= -1000 && stage_3d_context.cv[2] > 0)
-		stage_3d_context.cv[2] -= 0.17;
-
-	if(stage_3d_context.cx[1] < 100 && stage_3d_context.cv[2] < 0)
-		stage_3d_context.cv[2] = 0;
-
-	if(stage_3d_context.cx[2] >= 0 && stage_3d_context.cx[2] <= 10)
-		stage_3d_context.cv[1] += 0.2;
-
-	if(stage_3d_context.cx[1] >= 1200 && stage_3d_context.cx[1] <= 2000)
-		stage_3d_context.cv[1] += 0.02;
 }
 
 static void stage4_spellpractice_start(void) {

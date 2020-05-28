@@ -1599,6 +1599,7 @@ static int scythe_post_mid(Enemy *e, int t) {
 
 void stage4_events(void) {
 	TIMER(&global.timer);
+	return;
 
 	AT(0) {
 		stage_start_bgm("stage4");
