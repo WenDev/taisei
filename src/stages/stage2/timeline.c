@@ -520,6 +520,7 @@ TASK(spawn_boss, NO_ARGS) {
 	INVOKE_TASK_WHEN(&e->music_changes, common_start_bgm, "stage2boss");
 	WAIT_EVENT(&global.dialog->events.fadeout_began);
 
+	boss_add_attack_task(boss, AT_Normal, "Cards1", 30, 30000, TASK_INDIRECT(BossAttack, stage2_boss_nonspell_3), NULL);
 	boss_add_attack_task(boss, AT_Normal, "Cards1", 30, 30000, TASK_INDIRECT(BossAttack, stage2_boss_nonspell_1), NULL);
 	boss_add_attack_from_info(boss, &stage2_spells.boss.amulet_of_harm, false);
 	boss_add_attack_task(boss, AT_Normal, "Cards2", 40, 30000, TASK_INDIRECT(BossAttack, stage2_boss_nonspell_2), NULL);
