@@ -26,8 +26,8 @@ TASK(TColumn, { BoxedBoss boss; cmplx dir; real dir_sign; real odd; int num; rea
 	// NOTE: bullet flash warning dummied out, replaced with simple wait
 	WAIT(delay);
 
-	cmplx dir = ARGS.dir;      // this plays the role of "ang" in the original code, but in complex/vector form
-	real dir_sign = ARGS.dir;  // this is "dir" in the original code
+	cmplx dir = ARGS.dir;           // this plays the role of "ang" in the original code, but in complex/vector form
+	real dir_sign = ARGS.dir_sign;  // this is "dir" in the original code
 	real odd = ARGS.odd;
 	int num = ARGS.num;
 	real rank = ARGS.rank;
@@ -44,7 +44,7 @@ TASK(TColumn, { BoxedBoss boss; cmplx dir; real dir_sign; real odd; int num; rea
 			// NOTE: original code seems to limit this to spd
 			// This is probably better approximated with move_asymptotic, but it's not a direct translation
 			// .move = move_accelerated(1.25 * spd * aim, -spd/120 * aim),
-			.move = move_asymptotic_halflife(1.25 * spd * aim, spd * aim, 30),
+			.move = move_asymptotic_simple(spd * aim, 2),
 			.pos = shot_origin,
 		);
 
@@ -62,7 +62,7 @@ TASK(XPattern, { BoxedBoss boss; real dir_sign; int num2; int num3; }) {
 	int num3 = ARGS.num3 * rank;
 	real odd = 1;
 	real dir_sign = ARGS.dir_sign;
-	cmplx rot = cnormalize(global.plr.pos - boss->pos) * cdir(M_PI/2 * dir_sign);
+	cmplx rot = cnormalize(global.plr.pos - boss->pos) * cdir(M_PI/2 * -dir_sign);
 
 	for(int i = 0; i < num2; ++i) {
 		for(int j = 0; j < 3; ++j) {
@@ -101,7 +101,7 @@ TASK(TShoot, { BoxedBoss boss; real ang; real ang_s; real dist; real spd_inc; re
 
 		PROJECTILE(
 			.proto = (t > 0.6 * time) ? pp_crystal : pp_card,
-			.color = RGB(0, 0, 1),
+			.color = RGB(t / (real)time, 0, 1),
 			.pos = shot_origin,
 			.move = move_linear(spd * cdir(ang_shoot)),
 		);
