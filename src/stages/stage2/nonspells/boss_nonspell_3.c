@@ -14,36 +14,23 @@
 #include "common_tasks.h"
 #include "global.h"
 
-// Danmakufu coords -> Taisei coords
-#define SPACE_SCALE 1.25
-
-TASK(TColumn, { BoxedBoss boss; cmplx dir; real dir_sign; real odd; int num; real rank; }) {
+TASK(TColumn, { BoxedBoss boss; cmplx offset; cmplx aim; int num; real rank; }) {
 	Boss *boss = TASK_BIND(ARGS.boss);
 
-	int delay = 20;
-	real dist = 64 * SPACE_SCALE;
-
 	// NOTE: bullet flash warning dummied out, replaced with simple wait
-	WAIT(delay);
+	WAIT(20);
 
-	cmplx dir = ARGS.dir;           // this plays the role of "ang" in the original code, but in complex/vector form
-	real dir_sign = ARGS.dir_sign;  // this is "dir" in the original code
-	real odd = ARGS.odd;
 	int num = ARGS.num;
 	real rank = ARGS.rank;
-	cmplx shot_origin = boss->pos + dist * dir;
+	cmplx shot_origin = boss->pos + ARGS.offset;
 
 	for(int i = 0; i < num; ++i) {
-		real spd = SPACE_SCALE * rank * (3 + (1.5 * i) / num);
-		// this is like the `ang + 45*odd*dir + rand(-1,1)` in original code, but again expressed with complex numbers
-		cmplx aim = dir * cdir(DEG2RAD * (45 * odd * dir_sign + rng_sreal()));
+		real spd = rank * (3.75 + (1.875 * i) / num);
+		cmplx aim = ARGS.aim * cdir(M_PI/180 * rng_sreal());
 
 		PROJECTILE(
 			.proto = pp_card,
 			.color = RGB(1, 0, 0),
-			// NOTE: original code seems to limit this to spd
-			// This is probably better approximated with move_asymptotic, but it's not a direct translation
-			// .move = move_accelerated(1.25 * spd * aim, -spd/120 * aim),
 			.move = move_asymptotic_simple(spd * aim, 2),
 			.pos = shot_origin,
 		);
@@ -66,11 +53,12 @@ TASK(XPattern, { BoxedBoss boss; real dir_sign; int num2; int num3; }) {
 
 	for(int i = 0; i < num2; ++i) {
 		for(int j = 0; j < 3; ++j) {
+			cmplx dir = rot * cdir(dir_sign * (i * M_TAU*2 / (num - 1.0) - odd * (M_PI/6 + M_PI/3 * j)));
+
 			INVOKE_SUBTASK(TColumn,
 				.boss = ENT_BOX(boss),
-				.dir = rot * cdir(DEG2RAD * (dir_sign * i * 720 / (num - 1.0) - (30 + 60 * j) * odd * dir_sign)),
-				.dir_sign = dir_sign,
-				.odd = odd,
+				.offset = 80 * dir,
+				.aim = dir * cdir(M_PI/4 * dir_sign * odd),
 				.num = num3,
 				.rank = rank
 			);
@@ -96,14 +84,14 @@ TASK(TShoot, { BoxedBoss boss; real ang; real ang_s; real dist; real spd_inc; re
 	for(int i = 0; i < num; ++i) {
 		real ang2 = ang - ang_s * i * dir_sign;
 		cmplx shot_origin = boss->pos + cdir(ang2) * dist;
-		real ang_shoot = ang2 - M_PI/2 * dir_sign;
-		real spd = SPACE_SCALE * (1.5 - 0.5 * (i / num)) + (spd_inc * t) / time;
+		real spd = (1.875 - 0.625 * (i / num)) + (spd_inc * t) / time;
+		cmplx dir = cdir(ang2 - M_PI/2 * dir_sign);
 
 		PROJECTILE(
 			.proto = (t > 0.6 * time) ? pp_crystal : pp_card,
 			.color = RGB(t / (real)time, 0, 1),
 			.pos = shot_origin,
-			.move = move_linear(spd * cdir(ang_shoot)),
+			.move = move_linear(spd * dir),
 		);
 
 		WAIT(3);
@@ -114,7 +102,7 @@ TASK(SpinPattern, { BoxedBoss boss; real dir_sign; }) {
 	Boss *boss = TASK_BIND(ARGS.boss);
 
 	int rof = difficulty_value(12, 5, 4, 3);
-	real spd_inc = difficulty_value(1, 1.5, 2, 2.5) * SPACE_SCALE;
+	real spd_inc = difficulty_value(1.25, 1.875, 2.5, 3.125);
 
 	int time = 240;
 	int num = 3;
@@ -123,8 +111,8 @@ TASK(SpinPattern, { BoxedBoss boss; real dir_sign; }) {
 	real ang_d = dir_sign * rof * (2*M_TAU - M_PI/2) / time;
 	real ang_s = M_TAU/3;
 	real ang_s_d = -(M_TAU/3) / (time / (real)rof);
-	real dist = 16 * SPACE_SCALE;
-	real dist_d = 256.0 / time * SPACE_SCALE;
+	real dist = 20;
+	real dist_d = 320.0 / time;
 
 	// NOTE: bullet flash warning dummied out, replaced with simple wait
 	WAIT(20);
@@ -151,7 +139,7 @@ TASK(SpinPattern, { BoxedBoss boss; real dir_sign; }) {
 }
 
 static cmplx random_boss_pos(void) {
-	return VIEWPORT_W/2 + SPACE_SCALE * (rng_sreal() * 32 + I * rng_range(132, 144));
+	return VIEWPORT_W/2 + (rng_sreal() * 40 + I * rng_range(165, 180));
 }
 
 DEFINE_EXTERN_TASK(stage2_boss_nonspell_3) {
