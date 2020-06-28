@@ -1597,9 +1597,15 @@ static int scythe_post_mid(Enemy *e, int t) {
 	return 1;
 }
 
+TASK(change_corridor, NO_ARGS) {
+	for(int i = 0; i < 100; i++) {
+		color_approach(&stage4_draw_data.ambient_color, RGB(1,0,0), 0.01);
+		YIELD;
+	}
+}
+
 void stage4_events(void) {
 	TIMER(&global.timer);
-	return;
 
 	AT(0) {
 		stage_start_bgm("stage4");
@@ -1699,6 +1705,7 @@ void stage4_events(void) {
 
 	AT(5300 + midboss_time) {
 		stage_unlock_bgm("stage4");
+		INVOKE_TASK(change_corridor);
 		global.boss = create_kurumi();
 	}
 

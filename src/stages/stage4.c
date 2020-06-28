@@ -26,6 +26,8 @@ DIAGNOSTIC(ignored "-Wdeprecated-declarations")
  *  To add, remove, or reorder spells, see this stage's header file.
  */
 
+struct Stage4DrawData stage4_draw_data;
+
 struct stage4_spells_s stage4_spells = {
 	.mid = {
 		.gate_of_walachia = {
@@ -69,12 +71,12 @@ struct stage4_spells_s stage4_spells = {
 
 static bool stage4_fog(Framebuffer *fb) {
 	float f = 0;
-	int redtime = 5100 + STAGE4_MIDBOSS_MUSIC_TIME;
+/*	int redtime = 5100 + STAGE4_MIDBOSS_MUSIC_TIME;
 
 	if(global.timer > redtime) {
 		float v = (global.timer-redtime)*0.0005;
 		f =  v < 0.1 ? v : 0.1;
-	}
+	}*/
 
 	r_shader("zbuf_fog");
 	r_uniform_sampler("depth", r_framebuffer_get_attachment(fb, FRAMEBUFFER_ATTACH_DEPTH));
@@ -91,37 +93,45 @@ static bool stage4_fog(Framebuffer *fb) {
 
 
 static uint stage4_lake_pos(Stage3D *s3d, vec3 pos, float maxrange) {
-	vec3 p = {0, 200, 0};
+	vec3 p = {0, 0, 0};
 	return single3dpos(s3d, pos, maxrange, p);
 }
 
 static void stage4_lake_draw(vec3 pos) {
+	vec3 light_pos[] = {
+		{0, stage_3d_context.cam.pos[1]+3, stage_3d_context.cam.pos[2]-0.8},
+		{0, 25, 3}
+	};
+
+	mat4 camera_trans;
+	glm_mat4_identity(camera_trans);
+	camera3d_apply_transforms(&stage_3d_context.cam, camera_trans);
+
 	r_mat_mv_push();
-	r_mat_mv_translate(pos[0], pos[1] + 944, pos[2] + 50);
-	r_mat_mv_scale(30, 30, 30);
+	r_mat_mv_translate(pos[0], pos[1], pos[2]);
 	r_shader("pbr");
-	r_uniform_vec3_array("camera_pos", 0, 1, &stage_3d_context.cx);
 	//r_uniform_vec3_array("light_positions[0]", 0, 1, &stage_3d_context.cx);
 
 	vec3 light_colors[] = {
-		{2e5, 1e5, 3e5},
-		{1e4, 2e4, 5e5},
+		{1, 22, 22},
+		{4, 20, 22},
 	};
 
-	vec3 light_positions[] = {
-		{0, stage_3d_context.cx[1]+20,stage_3d_context.cx[2]+10},
-		{0,0,2000},
-	};
+	vec3 cam_light_positions[2];
+	glm_mat4_mulv3(camera_trans, light_pos[0], 1, cam_light_positions[0]);
+	glm_mat4_mulv3(camera_trans, light_pos[1], 1, cam_light_positions[1]);
 
 		
-	r_uniform_vec3_array("light_positions[0]", 0, ARRAY_SIZE(light_positions), light_positions);
+	r_uniform_vec3_array("light_positions[0]", 0, ARRAY_SIZE(cam_light_positions), cam_light_positions);
 	r_uniform_vec3_array("light_colors[0]", 0, ARRAY_SIZE(light_colors), light_colors);
+	r_uniform_int("light_count", 2);
 	
 	r_uniform_float("metallic", 0);
 	r_uniform_sampler("tex", "stage4/ground_diffuse");
 	r_uniform_sampler("roughness_map", "stage4/ground_roughness");
 	r_uniform_sampler("normal_map", "stage4/ground_normal");
 	r_uniform_sampler("ambient_map", "stage4/ground_ambient");
+	r_uniform_vec3("ambient_color", 1, 1, 1);
 
 
 	r_draw_model("stage4/ground");
@@ -138,8 +148,8 @@ static void stage4_lake_draw(vec3 pos) {
 }
 
 static uint stage4_corridor_pos(Stage3D *s3d, vec3 pos, float maxrange) {
-	vec3 p = {0, 2700, 60};
-	vec3 r = {0, 2000, 0};
+	vec3 p = {0, 25, 3};
+	vec3 r = {0, 10, 0};
 
 	uint num = linear3dpos(s3d, pos, maxrange, p, r);
 
@@ -153,57 +163,65 @@ static uint stage4_corridor_pos(Stage3D *s3d, vec3 pos, float maxrange) {
 }
 
 static void stage4_corridor_draw(vec3 pos) {
-	r_state_push();
-	r_uniform_sampler("tex", "stage4/planks");
+	real xoff = 3;
+	real zoff = 1.3;
+	vec3 light_pos[] = {
+		{-xoff, pos[1], pos[2]+zoff},
+		{xoff, pos[1], pos[2]+zoff},
+		{-xoff, pos[1]-10, pos[2]+zoff},
+		{xoff, pos[1]-10, pos[2]+zoff},
+		{-xoff, pos[1]+10, pos[2]+zoff},
+		{xoff, pos[1]+10, pos[2]+zoff},
+	};
 
-	r_mat_tex_push();
-	r_mat_tex_scale(1, 2, 1);
+	mat4 camera_trans;
+	glm_mat4_identity(camera_trans);
+	camera3d_apply_transforms(&stage_3d_context.cam, camera_trans);
+
+
+	vec3 light_colors[] = {
+		{1, 20, 20},
+		{1, 20, 20},
+		{1, 20, 20},
+		{1, 20, 20},
+		{1, 20, 20},
+		{1, 20, 20},
+	};
+
+	
+
+	vec3 cam_light_positions[ARRAY_SIZE(light_pos)];
+	for(int i = 0; i < ARRAY_SIZE(light_pos); i++) {
+		glm_mat4_mulv3(camera_trans, light_pos[i], 1, cam_light_positions[i]);
+
+		real t = global.frames*0.02;
+		real mod1 = cos(13095434*light_pos[i][1]);
+		real mod2 = sin(1242435*light_pos[i][0]*light_pos[i][1]);
+
+		double f = (sin((1+mod1)*t) + sin((2.35+mod2)*t+mod1) + sin((3.1257+mod1*mod2)*t+mod2))/3;
+		glm_vec3_scale(light_colors[i],0.6+0.4*f, light_colors[i]);
+	}
+
 
 	r_mat_mv_push();
 	r_mat_mv_translate(pos[0], pos[1], pos[2]);
+	//r_mat_mv_rotate(pos[1]/2000, 0, 1, 0);
+	r_shader("pbr");
 
-	r_mat_mv_push();
-	r_mat_mv_rotate(M_PI, 1,0,0);
-	r_mat_mv_scale(300, 2000, 1);
+	r_uniform_vec3_array("light_positions[0]", 0, ARRAY_SIZE(cam_light_positions), cam_light_positions);
+	r_uniform_vec3_array("light_colors[0]", 0, ARRAY_SIZE(light_colors), light_colors);
+	r_uniform_int("light_count", ARRAY_SIZE(light_pos));
 
-	r_draw_quad();
+
+	r_uniform_float("metallic", 0);
+	r_uniform_sampler("tex", "stage4/corridor_diffuse");
+	r_uniform_sampler("roughness_map", "stage4/corridor_roughness");
+	r_uniform_sampler("normal_map", "stage4/corridor_normal");
+	r_uniform_sampler("ambient_map", "stage4/corridor_ambient");
+	r_uniform_vec3_rgb("ambient_color", &stage4_draw_data.ambient_color);
+
+	r_draw_model("stage4/corridor");
 	r_mat_mv_pop();
-
-	r_uniform_sampler("tex", "stage4/wall");
-
-	r_mat_tex_pop();
-	r_mat_tex_push();
-	r_mat_tex_rotate(M_PI/2, 0, 0, 1);
-	r_mat_tex_scale(1, 10, 1);
-
-	r_mat_mv_push();
-	r_mat_mv_translate(100, 5, 75);
-	r_mat_mv_rotate(M_PI/2, 0, 1, 0);
-	r_mat_mv_scale(150, 2000, 1);
-	r_draw_quad();
-	r_mat_mv_pop();
-
-	r_mat_mv_push();
-	r_mat_mv_translate(-100, 5, 75);
-	r_mat_mv_rotate(M_PI, 1, 0, 0);
-	r_mat_mv_rotate(-M_PI/2, 0, 1, 0);
-	r_mat_mv_scale(150, 2000, 1);
-	r_draw_quad();
-	r_mat_mv_pop();
-
-	r_mat_tex_pop();
-
-	r_shader_standard_notex();
-
-	r_color3(0.01,0.01,0.01);
-	r_mat_mv_push();
-	r_mat_mv_translate(0,0,150);
-	r_mat_mv_scale(500,2000,1);
-	r_draw_quad();
-	r_mat_mv_pop();
-
-	r_mat_mv_pop();
-	r_state_pop();
 }
 
 
@@ -216,39 +234,40 @@ TASK(upgrade_stage_3d, NO_ARGS) {
 }
 
 TASK(animate_bg_fullstage, NO_ARGS) {
-	stage_3d_context.cx[2] = 0;
-	stage_3d_context.cx[1] = 150;
+	stage_3d_context.cam.pos[2] = -1.8;
+	stage_3d_context.cam.pos[1] = -30;
 	stage_3d_context.crot[0] = 80;
 	
-	stage_3d_context.cv[1] = 0.5;
-	stage_3d_context.cv[2] = 0.22;
+	stage_3d_context.cam.vel[1] = 0.017;
+	stage_3d_context.cam.vel[2] = 0.008;
 
 	WAIT(400);
 	for(int i = 0; i < 200; i++) {
 		YIELD;
-		fapproach_p(&stage_3d_context.cv[1], 0.4f, 0.002f);
-		fapproach_p(&stage_3d_context.cv[2], 0.0f, 0.002f);
+		fapproach_p(&stage_3d_context.cam.vel[1], 0.013f, 0.0001f);
+		fapproach_p(&stage_3d_context.cam.vel[2], 0.0f, 0.0001f);
 	}
 	WAIT(600);
 	for(int i = 0; i < 200; i++) {
 		YIELD;
-		fapproach_p(&stage_3d_context.cv[2], 0.1f, 0.002f);
+		fapproach_p(&stage_3d_context.cam.vel[2], 0.003f, 0.0002f);
 	}
 	WAIT(1000);
 	for(int i = 0; i < 400; i++) {
 		YIELD;
-		fapproach_p(&stage_3d_context.cv[2], -0.1f, 0.002f);
+		fapproach_p(&stage_3d_context.cam.vel[2], -0.003f, 0.0002f);
 	}
 	for(;;) {
 		YIELD;
-		fapproach_p(&stage_3d_context.cv[1], 0.2f, 0.01f);
-		fapproach_p(&stage_3d_context.cv[2], 0.0f, 0.01f);
+		fapproach_p(&stage_3d_context.cam.vel[1], 0.05f, 0.001f);
+		fapproach_p(&stage_3d_context.cam.vel[2], 0.0f, 0.001f);
 	}
 }
 
-
 static void stage4_start(void) {
 	stage3d_init(&stage_3d_context, 16);
+	memset(&stage4_draw_data, 0, sizeof(stage4_draw_data));
+	stage4_draw_data.ambient_color = *RGB(0.1,0.1,0.1);
 	INVOKE_TASK(upgrade_stage_3d);
 	INVOKE_TASK(animate_bg_fullstage);
 }
@@ -260,19 +279,24 @@ static void stage4_preload(void) {
 	preload_resources(RES_SPRITE, RESF_DEFAULT,
 		"stage4/kurumibg1",
 		"stage4/kurumibg2",
+		"stage4/ground_ambient",
 		"stage4/ground_diffuse",
 		"stage4/ground_roughness",
 		"stage4/ground_normal",
+		"stage4/mansion_ambient",
 		"stage4/mansion_diffuse",
 		"stage4/mansion_roughness",
 		"stage4/mansion_normal",
-		"stage4/planks",
-		"stage4/wall",
+		"stage4/corridor_ambient",
+		"stage4/corridor_diffuse",
+		"stage4/corridor_roughness",
+		"stage4/corridor_normal",
 	NULL);
 	preload_resources(RES_SPRITE, RESF_DEFAULT,
-		"stage6/scythe", // Stage 6 is also intentional
+		"stage6/scythe", // Stage 6 is intentional
 	NULL);
 	preload_resources(RES_SHADER_PROGRAM, RESF_DEFAULT,
+		"pbr",
 		"zbuf_fog",
 		"sprite_negative",
 	NULL);
@@ -284,6 +308,8 @@ static void stage4_preload(void) {
 	NULL);
 	preload_resources(RES_MODEL, RESF_DEFAULT,
 		"stage4/mansion",
+		"stage4/ground",
+		"stage4/corridor",
 	NULL);
 	preload_resources(RES_TEXTURE, RESF_OPTIONAL,
 		"part/sinewave",
@@ -304,14 +330,14 @@ static void stage4_end(void) {
 }
 
 static void stage4_draw(void) {
-	r_mat_proj_perspective(STAGE3D_DEFAULT_FOVY, STAGE3D_DEFAULT_ASPECT, 30, 3000);
+	r_mat_proj_perspective(STAGE3D_DEFAULT_FOVY, VIEWPORT_W/(double)VIEWPORT_H, 1, 300);
 
 	Stage3DSegment segs[] = {
 		{ stage4_lake_draw, stage4_lake_pos },
 		{ stage4_corridor_draw, stage4_corridor_pos },
 	};
 
-	stage3d_draw(&stage_3d_context, 4000, ARRAY_SIZE(segs), segs);
+	stage3d_draw(&stage_3d_context, 400, ARRAY_SIZE(segs), segs);
 }
 
 static void stage4_update(void) {
