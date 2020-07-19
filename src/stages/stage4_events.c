@@ -1607,6 +1607,8 @@ TASK(change_corridor, NO_ARGS) {
 void stage4_events(void) {
 	TIMER(&global.timer);
 
+	return;
+
 	AT(0) {
 		stage_start_bgm("stage4");
 		stage4_skip(env_get("STAGE4_TEST", 0));

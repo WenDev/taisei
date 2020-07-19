@@ -81,7 +81,7 @@ static GLuint r_wrap_to_gl_wrap(TextureWrapMode mode) {
 	return map[mode];
 }
 
-GLTextureTypeInfo* gl33_texture_type_info(TextureType type) {
+GLTextureTypeInfo *gl33_texture_type_info(TextureType type) {
 	static GLTextureFormatTuple color_formats[] = {
 		{ GL_RED,  GL_UNSIGNED_BYTE,  PIXMAP_FORMAT_R8      },
 		{ GL_RED,  GL_UNSIGNED_SHORT, PIXMAP_FORMAT_R16     },
@@ -147,6 +147,11 @@ GLTextureTypeInfo* gl33_texture_type_info(TextureType type) {
 
 	assert((uint)type < sizeof(map)/sizeof(*map));
 	return map + type;
+}
+
+bool gl33_texture_type_supported(TextureType type, TextureFlags flags) {
+	log_warn("FIXME STUB");
+	return !(flags & TEX_FLAG_SRGB);
 }
 
 void gl33_texture_get_size(Texture *tex, uint mipmap, uint *width, uint *height) {
@@ -222,6 +227,39 @@ static void gl33_texture_set(Texture *tex, uint mipmap, const Pixmap *image) {
 	tex->mipmaps_outdated = true;
 }
 
+static void apply_swizzle(GLenum param, char val) {
+	GLenum swizzle_val;
+
+	switch(val) {
+		case 'r': swizzle_val = GL_RED;   break;
+		case 'g': swizzle_val = GL_GREEN; break;
+		case 'b': swizzle_val = GL_BLUE;  break;
+		case 'a': swizzle_val = GL_ALPHA; break;
+		case '0': swizzle_val = GL_ZERO;  break;
+		case '1': swizzle_val = GL_ONE;   break;
+		case 0: {
+			switch(param) {
+				case GL_TEXTURE_SWIZZLE_R: swizzle_val = GL_RED;   break;
+				case GL_TEXTURE_SWIZZLE_G: swizzle_val = GL_GREEN; break;
+				case GL_TEXTURE_SWIZZLE_B: swizzle_val = GL_BLUE;  break;
+				case GL_TEXTURE_SWIZZLE_A: swizzle_val = GL_ALPHA; break;
+				default: UNREACHABLE;
+			}
+			break;
+		}
+		default: UNREACHABLE;
+	}
+
+	glTexParameteri(GL_TEXTURE_2D, param, swizzle_val);
+}
+
+static void apply_swizzle_mask(TextureSwizzleMask *mask) {
+	apply_swizzle(GL_TEXTURE_SWIZZLE_R, mask->r);
+	apply_swizzle(GL_TEXTURE_SWIZZLE_G, mask->g);
+	apply_swizzle(GL_TEXTURE_SWIZZLE_B, mask->b);
+	apply_swizzle(GL_TEXTURE_SWIZZLE_A, mask->a);
+}
+
 Texture* gl33_texture_create(const TextureParams *params) {
 	Texture *tex = calloc(1, sizeof(Texture));
 	memcpy(&tex->params, params, sizeof(*params));
@@ -229,9 +267,16 @@ Texture* gl33_texture_create(const TextureParams *params) {
 
 	uint max_mipmaps = 1 + floor(log2(umax(tex->params.width, tex->params.height)));  // TODO replace with integer log2
 
+	if(p->flags & TEX_FLAG_SRGB) {
+		log_fatal("Implement me!");
+	}
+
 	if(p->mipmaps == 0) {
 		if(p->mipmap_mode == TEX_MIPMAP_AUTO) {
 			p->mipmaps = TEX_MIPMAPS_MAX;
+			if(p->flags & TEX_FLAG_SRGB) {
+				log_warn("FIXME: sRGB textures may not support automatic mipmap generation; please write a fallback!");
+			}
 		} else {
 			p->mipmaps = 1;
 		}
@@ -257,6 +302,8 @@ Texture* gl33_texture_create(const TextureParams *params) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, r_filter_to_gl_filter(p->filter.min, tex->type_info->internal_fmt));
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, r_filter_to_gl_filter(p->filter.mag, tex->type_info->internal_fmt));
 
+	apply_swizzle_mask(&tex->params.swizzle);
+
 	if(!glext.version.is_es || GLES_ATLEAST(3, 0)) {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, p->mipmaps - 1);
 	}
@@ -265,7 +312,7 @@ Texture* gl33_texture_create(const TextureParams *params) {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, p->anisotropy);
 	}
 
-	if(p->stream && glext.pixel_buffer_object) {
+	if((p->flags & TEX_FLAG_STREAM) && glext.pixel_buffer_object) {
 		glGenBuffers(1, &tex->pbo);
 	}
 

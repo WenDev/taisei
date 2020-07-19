@@ -13,7 +13,7 @@
 #include "../api.h"
 #include "vtable.h"
 
-static GLTextureFormatTuple* glcommon_find_best_pixformat_internal(GLTextureFormatTuple *formats, PixmapFormat pxfmt) {
+static GLTextureFormatTuple *glcommon_find_best_pixformat_internal(GLTextureFormatTuple *formats, PixmapFormat pxfmt) {
 	GLTextureFormatTuple *best = formats;
 
 	if(best->px_fmt == pxfmt) {
@@ -166,6 +166,8 @@ GLenum glcommon_texture_base_format(GLenum internal_fmt) {
 		case GL_RGBA8I: return GL_RGBA;
 		case GL_RGBA8UI: return GL_RGBA;
 		case GL_RGBA8_SNORM: return GL_RGBA;
+		case GL_SR8_EXT: return GL_RED;
+		case GL_SRG8_EXT: return GL_RG;
 		case GL_SRGB8: return GL_RGB;
 		case GL_SRGB8_ALPHA8: return GL_RGBA;
 
@@ -174,8 +176,201 @@ GLenum glcommon_texture_base_format(GLenum internal_fmt) {
 		case GL_RG: return GL_RG;
 		case GL_RGB: return GL_RGB;
 		case GL_RGBA: return GL_RGBA;
+		case GL_SRGB: return GL_RGB;
+		case GL_SRGB_ALPHA: return GL_RGBA;
 		case GL_DEPTH_COMPONENT: return GL_DEPTH_COMPONENT;
 	}
 
 	UNREACHABLE;
+}
+
+GLenum glcommon_compression_to_gl_format(PixmapCompression cfmt) {
+	GLenum r = GL_NONE;
+
+	switch(cfmt) {
+		case PIXMAP_COMPRESSION_ASTC_4x4_RGBA:
+			if(glext.tex_format.astc) {
+				r = GL_COMPRESSED_RGBA_ASTC_4x4_KHR;
+			}
+			break;
+
+		case PIXMAP_COMPRESSION_BC1_RGB:
+			if(glext.tex_format.s3tc_dx1) {
+				r = GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
+			}
+			break;
+
+		case PIXMAP_COMPRESSION_BC3_RGBA:
+			if(glext.tex_format.s3tc_dx5) {
+				r = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
+			}
+			break;
+
+		case PIXMAP_COMPRESSION_BC4_R:
+			if(glext.tex_format.rgtc) {
+				r = GL_COMPRESSED_RED_RGTC1;
+			}
+			break;
+
+		case PIXMAP_COMPRESSION_BC5_RG:
+			if(glext.tex_format.rgtc) {
+				r = GL_COMPRESSED_RG_RGTC2;
+			}
+			break;
+
+		case PIXMAP_COMPRESSION_BC7_RGBA:
+			if(glext.tex_format.bptc) {
+				r = GL_COMPRESSED_RGBA_BPTC_UNORM_ARB;
+			}
+			break;
+
+		case PIXMAP_COMPRESSION_ETC1_RGB:
+			if(glext.tex_format.etc1) {
+				r = GL_ETC1_RGB8_OES;
+				break;
+			}
+			// NOTE: this format is forwards-compatible with ETC2
+			// fallthrough
+
+		case PIXMAP_COMPRESSION_ETC2_RGBA:
+			if(glext.tex_format.etc2_eac) {
+				r = GL_COMPRESSED_RGBA8_ETC2_EAC;
+			}
+			break;
+
+		case PIXMAP_COMPRESSION_ETC2_EAC_R11:
+			if(glext.tex_format.etc2_eac) {
+				r = GL_COMPRESSED_R11_EAC;
+			}
+			break;
+
+		case PIXMAP_COMPRESSION_ETC2_EAC_RG11:
+			if(glext.tex_format.etc2_eac) {
+				r = GL_COMPRESSED_RG11_EAC;
+			}
+			break;
+
+		case PIXMAP_COMPRESSION_PVRTC1_4_RGB:
+			if(glext.tex_format.pvrtc) {
+				r = GL_COMPRESSED_RGB_PVRTC_4BPPV1_IMG;
+			}
+			break;
+
+		case PIXMAP_COMPRESSION_PVRTC1_4_RGBA:
+			if(glext.tex_format.pvrtc) {
+				r = GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG;
+			}
+			break;
+
+		case PIXMAP_COMPRESSION_PVRTC2_4_RGB:
+		case PIXMAP_COMPRESSION_PVRTC2_4_RGBA:
+			if(glext.tex_format.pvrtc2) {
+				r = GL_COMPRESSED_RGBA_PVRTC_4BPPV2_IMG;
+			}
+			break;
+
+		case PIXMAP_COMPRESSION_ATC_RGB:
+			if(glext.tex_format.atc) {
+				r = GL_ATC_RGB_AMD;
+			}
+			break;
+
+		case PIXMAP_COMPRESSION_ATC_RGBA:
+			if(glext.tex_format.atc) {
+				r = GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD;
+			}
+			break;
+
+		case PIXMAP_COMPRESSION_FXT1_RGB:
+			if(glext.tex_format.fxt1) {
+				r = GL_COMPRESSED_RGB_FXT1_3DFX;
+			}
+			break;
+
+		default: UNREACHABLE;
+	}
+
+	return r;
+}
+
+GLenum glcommon_compression_to_gl_format_srgb(PixmapCompression cfmt) {
+	GLenum r = GL_NONE;
+
+	switch(cfmt) {
+		case PIXMAP_COMPRESSION_ASTC_4x4_RGBA:
+			if(glext.tex_format.astc) {
+				r = GL_COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR;
+			}
+			break;
+
+		// needs EXT_texture_sRGB or NV_sRGB_formats or EXT_texture_compression_s3tc_srgb
+		case PIXMAP_COMPRESSION_BC1_RGB:
+			if(glext.tex_format.s3tc_dx1 && glext.tex_format.s3tc_srgb) {
+				r = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
+			}
+			break;
+
+		// needs EXT_texture_sRGB or NV_sRGB_formats or EXT_texture_compression_s3tc_srgb
+		case PIXMAP_COMPRESSION_BC3_RGBA:
+			if(glext.tex_format.s3tc_dx5 && glext.tex_format.s3tc_srgb) {
+				r = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT;
+			}
+			break;
+
+		case PIXMAP_COMPRESSION_BC7_RGBA:
+			if(glext.tex_format.bptc) {
+				r = GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM_ARB;
+			}
+			break;
+
+		// requires NV_sRGB_formats
+		case PIXMAP_COMPRESSION_ETC1_RGB:
+			if(glext.tex_format.etc1_srgb) {
+				r = GL_ETC1_SRGB8_NV;
+				break;
+			}
+			// NOTE: this format is forwards-compatible with ETC2
+			// fallthrough
+
+		case PIXMAP_COMPRESSION_ETC2_RGBA:
+			if(glext.tex_format.etc2_eac_srgb) {
+				r = GL_COMPRESSED_SRGB8_ALPHA8_ETC2_EAC;
+			}
+			break;
+
+		// needs EXT_pvrtc_sRGB
+		case PIXMAP_COMPRESSION_PVRTC1_4_RGB:
+			if(glext.tex_format.pvrtc && glext.tex_format.pvrtc_srgb) {
+				r = GL_COMPRESSED_SRGB_PVRTC_4BPPV1_EXT;
+			}
+			break;
+
+		// needs EXT_pvrtc_sRGB
+		case PIXMAP_COMPRESSION_PVRTC1_4_RGBA:
+			if(glext.tex_format.pvrtc && glext.tex_format.pvrtc_srgb) {
+				r = GL_COMPRESSED_SRGB_ALPHA_PVRTC_4BPPV1_EXT;
+			}
+			break;
+
+		// needs EXT_pvrtc_sRGB
+		case PIXMAP_COMPRESSION_PVRTC2_4_RGB:
+		case PIXMAP_COMPRESSION_PVRTC2_4_RGBA:
+			if(glext.tex_format.pvrtc2 && glext.tex_format.pvrtc_srgb) {
+				r = GL_COMPRESSED_SRGB_ALPHA_PVRTC_4BPPV2_IMG;
+			}
+			break;
+
+		case PIXMAP_COMPRESSION_BC4_R:
+		case PIXMAP_COMPRESSION_BC5_RG:
+		case PIXMAP_COMPRESSION_ETC2_EAC_R11:
+		case PIXMAP_COMPRESSION_ETC2_EAC_RG11:
+		case PIXMAP_COMPRESSION_ATC_RGB:
+		case PIXMAP_COMPRESSION_ATC_RGBA:
+		case PIXMAP_COMPRESSION_FXT1_RGB:
+			break;
+
+		default: UNREACHABLE;
+	}
+
+	return r;
 }

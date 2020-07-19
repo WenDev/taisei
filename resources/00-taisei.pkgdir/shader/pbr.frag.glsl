@@ -4,9 +4,9 @@
 #include "lib/render_context.glslh"
 #include "interface/pbr.glslh"
 
-UNIFORM(1) sampler2D roughness_map; 
-UNIFORM(2) sampler2D normal_map; 
-UNIFORM(3) sampler2D ambient_map; 
+UNIFORM(1) sampler2D roughness_map;
+UNIFORM(2) sampler2D normal_map;
+UNIFORM(3) sampler2D ambient_map;
 UNIFORM(4) float metallic;
 UNIFORM(5) int light_count;
 UNIFORM(6) vec3 ambient_color; // modulates ambient map
@@ -52,48 +52,54 @@ float geometry_smith(vec3 n, vec3 v, vec3 l, float roughness) {
 
 vec3 fresnel_schlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
-}  
+}
+
+vec3 sample_normalmap(sampler2D src, vec2 uv) {
+	vec2 xy = texture(normal_map, texCoord).rg * 2 - 1;
+	float z = sqrt(1 - xy.x * xy.x - xy.y * xy.y);
+	return normalize(vec3(xy, z));
+}
 
 void main(void) {
 	vec3 albedo = (r_color * texture(tex, texCoord)).rgb;
 	float roughness = texture(roughness_map, texCoord).r;
-	vec3 tbn_normal = normalize(texture(normal_map, texCoord).rgb*2-1);
+	vec3 tbn_normal = sample_normalmap(normal_map, texCoord);
 	vec3 ambient = texture(ambient_map, texCoord).rgb;
 
 	vec3 n = normalize(mat3(normalize(tangent), normalize(bitangent), normalize(normal))*tbn_normal);
 	vec3 v = normalize(-pos);
 
-	vec3 F0 = vec3(0.04); 
+	vec3 F0 = vec3(0.04);
 	F0 = mix(F0, albedo, metallic);
-	           
+
 	vec3 Lo = vec3(0.0);
 	for(int i = 0; i < light_count; ++i) {
 		vec3 l = normalize(light_positions[i] - pos);
 		vec3 h = normalize(v + l);
 		float distance = length(light_positions[i] - pos);
 		float attenuation = 1 / (distance * distance);
-		vec3 radiance = light_colors[i] * attenuation;        
+		vec3 radiance = light_colors[i] * attenuation;
 
-		float NDF = distribution_ggx(n, h, roughness);        
-		float G = geometry_smith(n, v, l, roughness);      
-		vec3 F = fresnel_schlick(max(dot(h, v), 0.0), F0);       
+		float NDF = distribution_ggx(n, h, roughness);
+		float G = geometry_smith(n, v, l, roughness);
+		vec3 F = fresnel_schlick(max(dot(h, v), 0.0), F0);
 
 		vec3 kS = F;
 		vec3 kD = vec3(1.0) - kS;
-		kD *= 1.0 - metallic;	  
+		kD *= 1.0 - metallic;
 
 		vec3 numerator = NDF * G * F;
 		float denominator = 4.0 * max(dot(n, v), 0.0) * max(dot(n, l), 0.0);
-		vec3 specular = numerator / max(denominator, 0.001);  
-		float NdotL = max(dot(n, l), 0.0);                
-		Lo += (kD * albedo / pi + specular) * radiance * NdotL; 
-	}   
+		vec3 specular = numerator / max(denominator, 0.001);
+		float NdotL = max(dot(n, l), 0.0);
+		Lo += (kD * albedo / pi + specular) * radiance * NdotL;
+	}
 
 	//vec3 ambient = vec3(0.03) * albedo * ao;
 	vec3 color = ambient_color*ambient + Lo;
 
 	color = color / (color + vec3(1.0));
-	color = pow(color, vec3(1.0/2.2));  
+	color = pow(color, vec3(1.0/2.2));
 
 	fragColor = vec4(color, 1.0);
 }
