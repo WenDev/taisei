@@ -86,7 +86,14 @@ GLTextureFormatTuple *glcommon_find_best_pixformat(TextureType textype, PixmapFo
 GLenum glcommon_texture_base_format(GLenum internal_fmt) {
 	switch(internal_fmt) {
 		// NOTE: semi-generated code
+
 		#ifndef STATIC_GLES3
+		case GL_R3_G3_B2: return GL_RGB;
+		case GL_RGB12: return GL_RGB;
+		case GL_RGB4: return GL_RGB;
+		case GL_RGB5: return GL_RGB;
+		case GL_RGBA12: return GL_RGBA;
+		case GL_RGBA2: return GL_RGBA;
 		case GL_COMPRESSED_RED: return GL_RED;
 		case GL_COMPRESSED_RED_RGTC1: return GL_RED;
 		case GL_COMPRESSED_RG: return GL_RG;
@@ -97,13 +104,30 @@ GLenum glcommon_texture_base_format(GLenum internal_fmt) {
 		case GL_COMPRESSED_SIGNED_RG_RGTC2: return GL_RG;
 		case GL_COMPRESSED_SRGB: return GL_RGB;
 		case GL_COMPRESSED_SRGB_ALPHA: return GL_RGBA;
-		case GL_R3_G3_B2: return GL_RGB;
-		case GL_RGB12: return GL_RGB;
-		case GL_RGB4: return GL_RGB;
-		case GL_RGB5: return GL_RGB;
-		case GL_RGBA12: return GL_RGBA;
-		case GL_RGBA2: return GL_RGBA;
 		#endif
+
+		case GL_COMPRESSED_RGBA_ASTC_4x4_KHR: return GL_RGBA;
+		case GL_COMPRESSED_RGB_S3TC_DXT1_EXT: return GL_RGB;
+		case GL_COMPRESSED_RGBA_S3TC_DXT5_EXT: return GL_RGBA;
+		case GL_COMPRESSED_RGBA_BPTC_UNORM_ARB: return GL_RGBA;
+		case GL_ETC1_RGB8_OES: return GL_RGB;
+		case GL_COMPRESSED_RGBA8_ETC2_EAC: return GL_RGBA;
+		case GL_COMPRESSED_R11_EAC: return GL_RED;
+		case GL_COMPRESSED_RGB_PVRTC_4BPPV1_IMG: return GL_RGB;
+		case GL_COMPRESSED_RGBA_PVRTC_4BPPV1_IMG: return GL_RGBA;
+		case GL_COMPRESSED_RGBA_PVRTC_4BPPV2_IMG: return GL_RGBA;
+		case GL_ATC_RGB_AMD: return GL_RGB;
+		case GL_ATC_RGBA_INTERPOLATED_ALPHA_AMD: return GL_RGBA;
+		case GL_COMPRESSED_RGB_FXT1_3DFX: return GL_RGB;
+		case GL_COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR: return GL_RGBA;
+		case GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT: return GL_RGBA;
+		case GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT: return GL_RGBA;
+		case GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM_ARB: return GL_RGBA;
+		case GL_ETC1_SRGB8_NV: return GL_RGB;
+		case GL_COMPRESSED_SRGB8_ALPHA8_ETC2_EAC: return GL_RGBA;
+		case GL_COMPRESSED_SRGB_PVRTC_4BPPV1_EXT: return GL_RGB;
+		case GL_COMPRESSED_SRGB_ALPHA_PVRTC_4BPPV1_EXT: return GL_RGBA;
+		case GL_COMPRESSED_SRGB_ALPHA_PVRTC_4BPPV2_IMG: return GL_RGBA;
 
 		case GL_DEPTH24_STENCIL8: return GL_DEPTH_STENCIL;
 		case GL_DEPTH32F_STENCIL8: return GL_DEPTH_STENCIL;
@@ -303,14 +327,12 @@ GLenum glcommon_compression_to_gl_format_srgb(PixmapCompression cfmt) {
 			}
 			break;
 
-		// needs EXT_texture_sRGB or NV_sRGB_formats or EXT_texture_compression_s3tc_srgb
 		case PIXMAP_COMPRESSION_BC1_RGB:
 			if(glext.tex_format.s3tc_dx1 && glext.tex_format.s3tc_srgb) {
 				r = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
 			}
 			break;
 
-		// needs EXT_texture_sRGB or NV_sRGB_formats or EXT_texture_compression_s3tc_srgb
 		case PIXMAP_COMPRESSION_BC3_RGBA:
 			if(glext.tex_format.s3tc_dx5 && glext.tex_format.s3tc_srgb) {
 				r = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT;
@@ -323,7 +345,6 @@ GLenum glcommon_compression_to_gl_format_srgb(PixmapCompression cfmt) {
 			}
 			break;
 
-		// requires NV_sRGB_formats
 		case PIXMAP_COMPRESSION_ETC1_RGB:
 			if(glext.tex_format.etc1_srgb) {
 				r = GL_ETC1_SRGB8_NV;
@@ -338,21 +359,18 @@ GLenum glcommon_compression_to_gl_format_srgb(PixmapCompression cfmt) {
 			}
 			break;
 
-		// needs EXT_pvrtc_sRGB
 		case PIXMAP_COMPRESSION_PVRTC1_4_RGB:
 			if(glext.tex_format.pvrtc && glext.tex_format.pvrtc_srgb) {
 				r = GL_COMPRESSED_SRGB_PVRTC_4BPPV1_EXT;
 			}
 			break;
 
-		// needs EXT_pvrtc_sRGB
 		case PIXMAP_COMPRESSION_PVRTC1_4_RGBA:
 			if(glext.tex_format.pvrtc && glext.tex_format.pvrtc_srgb) {
 				r = GL_COMPRESSED_SRGB_ALPHA_PVRTC_4BPPV1_EXT;
 			}
 			break;
 
-		// needs EXT_pvrtc_sRGB
 		case PIXMAP_COMPRESSION_PVRTC2_4_RGB:
 		case PIXMAP_COMPRESSION_PVRTC2_4_RGBA:
 			if(glext.tex_format.pvrtc2 && glext.tex_format.pvrtc_srgb) {
@@ -373,4 +391,27 @@ GLenum glcommon_compression_to_gl_format_srgb(PixmapCompression cfmt) {
 	}
 
 	return r;
+}
+
+GLenum glcommon_uncompressed_format_to_srgb_format(GLenum format) {
+	switch(format) {
+		case GL_RED:
+		case GL_R8:
+			return glext.tex_format.r8_srgb ? GL_SR8_EXT : GL_NONE;
+
+		case GL_RG:
+		case GL_RG8:
+			return glext.tex_format.rg8_srgb ? GL_SRG8_EXT : GL_NONE;
+
+		case GL_RGB:
+		case GL_RGB8:
+			return glext.tex_format.rgb8_rgba8_srgb ? GL_SRGB8 : GL_NONE;
+
+		case GL_RGBA:
+		case GL_RGBA8:
+			return glext.tex_format.rgb8_rgba8_srgb ? GL_SRGB8_ALPHA8 : GL_NONE;
+
+		default:
+			return GL_NONE;
+	}
 }

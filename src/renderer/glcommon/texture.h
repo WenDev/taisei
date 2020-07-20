@@ -31,5 +31,6 @@ GLTextureFormatTuple *glcommon_find_best_pixformat(TextureType textype, PixmapFo
 GLenum glcommon_texture_base_format(GLenum internal_fmt);
 GLenum glcommon_compression_to_gl_format(PixmapCompression cfmt);
 GLenum glcommon_compression_to_gl_format_srgb(PixmapCompression cfmt);
+GLenum glcommon_uncompressed_format_to_srgb_format(GLenum format);
 
 #endif // IGUARD_renderer_glcommon_texture_h
