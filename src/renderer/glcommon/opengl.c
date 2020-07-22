@@ -13,6 +13,7 @@
 #include "opengl.h"
 #include "debug.h"
 #include "shaders.h"
+#include "texture.h"
 
 struct glext_s glext = { 0 };
 
@@ -336,10 +337,28 @@ static void glcommon_ext_texture_norm16(void) {
 }
 
 static void glcommon_ext_texture_rg(void) {
-	EXT_FLAG(texture_norm16);
+	EXT_FLAG(texture_rg);
 
 	CHECK_CORE(!glext.version.is_es);
 	CHECK_EXT(GL_EXT_texture_rg);
+
+	EXT_MISSING();
+}
+
+static void glcommon_ext_texture_float(void) {
+	EXT_FLAG(texture_float);
+
+	CHECK_CORE(!glext.version.is_es || GLES_ATLEAST(3, 0));
+	CHECK_EXT(GL_OES_texture_float);
+
+	EXT_MISSING();
+}
+
+static void glcommon_ext_texture_half_float(void) {
+	EXT_FLAG(texture_half_float);
+
+	CHECK_CORE(!glext.version.is_es || GLES_ATLEAST(3, 0));
+	CHECK_EXT(GL_OES_texture_half_float);
 
 	EXT_MISSING();
 }
@@ -467,7 +486,7 @@ static void glcommon_ext_texture_format_s3tc_dx5(void) {
 }
 
 static void glcommon_ext_texture_format_s3tc_srgb(void) {
-	EXT_FLAG(tex_format.s3tc_dx5);
+	EXT_FLAG(tex_format.s3tc_srgb);
 
 	if(glext.tex_format.s3tc_dx1 || glext.tex_format.s3tc_dx5) {
 		CHECK_EXT(GL_EXT_texture_sRGB);
@@ -496,7 +515,7 @@ static void glcommon_ext_texture_format_etc1(void) {
 }
 
 static void glcommon_ext_texture_format_etc1_srgb(void) {
-	EXT_FLAG(tex_format.etc1);
+	EXT_FLAG(tex_format.etc1_srgb);
 
 	if(glext.tex_format.etc1) {
 		CHECK_EXT(GL_NV_sRGB_formats);
@@ -518,7 +537,7 @@ static void glcommon_ext_texture_format_etc2_eac(void) {
 }
 
 static void glcommon_ext_texture_format_etc2_eac_srgb(void) {
-	EXT_FLAG(tex_format.etc2_eac);
+	EXT_FLAG(tex_format.etc2_eac_srgb);
 
 	CHECK_CORE(GL_ATLEAST(4, 3) || GLES_ATLEAST(3, 0));
 	CHECK_EXT(GL_OES_compressed_ETC2_sRGB8_alpha8_texture);
@@ -556,7 +575,7 @@ static void glcommon_ext_texture_format_pvrtc2(void) {
 }
 
 static void glcommon_ext_texture_format_pvrtc_srgb(void) {
-	EXT_FLAG(tex_format.pvrtc2);
+	EXT_FLAG(tex_format.pvrtc_srgb);
 
 	CHECK_EXT(GL_EXT_pvrtc_sRGB);
 
@@ -859,7 +878,9 @@ void glcommon_check_capabilities(void) {
 	glcommon_ext_instanced_arrays();
 	glcommon_ext_pixel_buffer_object();
 	glcommon_ext_texture_filter_anisotropic();
+	glcommon_ext_texture_float();
 	glcommon_ext_texture_float_linear();
+	glcommon_ext_texture_half_float();
 	glcommon_ext_texture_half_float_linear();
 	glcommon_ext_texture_norm16();
 	glcommon_ext_texture_rg();
@@ -886,6 +907,7 @@ void glcommon_check_capabilities(void) {
 	glcommon_ext_texture_format_fxt1();
 
 	glcommon_build_shader_lang_table();
+	glcommon_init_texture_formats();
 	glcommon_check_issues();
 }
 
@@ -908,6 +930,7 @@ void glcommon_unload_library(void) {
 	SDL_GL_UnloadLibrary();
 #endif
 	glcommon_free_shader_lang_table();
+	glcommon_free_texture_formats();
 }
 
 attr_unused
