@@ -471,6 +471,7 @@ static void glcommon_ext_texture_format_s3tc_dx1(void) {
 	CHECK_EXT(GL_NV_texture_compression_s3tc);
 	CHECK_EXT(GL_EXT_texture_compression_dxt1);
 	CHECK_EXT(GL_ANGLE_texture_compression_dxt1);
+	CHECK_EXT(GL_WEBGL_compressed_texture_s3tc);
 
 	EXT_MISSING();
 }
@@ -481,6 +482,7 @@ static void glcommon_ext_texture_format_s3tc_dx5(void) {
 	CHECK_EXT(GL_EXT_texture_compression_s3tc);
 	CHECK_EXT(GL_NV_texture_compression_s3tc);
 	CHECK_EXT(GL_ANGLE_texture_compression_dxt5);
+	CHECK_EXT(GL_WEBGL_compressed_texture_s3tc);
 
 	EXT_MISSING();
 }
@@ -492,6 +494,7 @@ static void glcommon_ext_texture_format_s3tc_srgb(void) {
 		CHECK_EXT(GL_EXT_texture_sRGB);
 		CHECK_EXT(GL_EXT_texture_compression_s3tc_srgb);
 		CHECK_EXT(GL_NV_sRGB_formats);
+		CHECK_EXT(GL_WEBGL_compressed_texture_s3tc_srgb);
 	}
 
 	EXT_MISSING();
@@ -510,6 +513,7 @@ static void glcommon_ext_texture_format_etc1(void) {
 	EXT_FLAG(tex_format.etc1);
 
 	CHECK_EXT(GL_OES_compressed_ETC1_RGB8_texture);
+	CHECK_EXT(GL_WEBGL_compressed_texture_etc1);
 
 	EXT_MISSING();
 }
@@ -527,9 +531,10 @@ static void glcommon_ext_texture_format_etc1_srgb(void) {
 static void glcommon_ext_texture_format_etc2_eac(void) {
 	EXT_FLAG(tex_format.etc2_eac);
 
-	CHECK_CORE(GL_ATLEAST(4, 3) || GLES_ATLEAST(3, 0));
+	CHECK_CORE(GL_ATLEAST(4, 3) || (GLES_ATLEAST(3, 0) && !glext.version.is_webgl));
 	CHECK_EXT(GL_OES_compressed_ETC2_RGBA8_texture);
 	CHECK_EXT(GL_ARB_ES3_compatibility);
+	CHECK_EXT(GL_WEBGL_compressed_texture_etc);
 
 	// FIXME: maybe don't just assume R11/RG11 are supported as well?
 
@@ -542,6 +547,7 @@ static void glcommon_ext_texture_format_etc2_eac_srgb(void) {
 	CHECK_CORE(GL_ATLEAST(4, 3) || GLES_ATLEAST(3, 0));
 	CHECK_EXT(GL_OES_compressed_ETC2_sRGB8_alpha8_texture);
 	CHECK_EXT(GL_ARB_ES3_compatibility);
+	CHECK_EXT(GL_WEBGL_compressed_texture_etc);
 
 	// FIXME: maybe don't just assume R11/RG11 are supported as well?
 
@@ -588,6 +594,7 @@ static void glcommon_ext_texture_format_astc(void) {
 	CHECK_CORE(GLES_ATLEAST(3, 2));
 	CHECK_EXT(GL_KHR_texture_compression_astc_ldr);
 	CHECK_EXT(GL_OES_texture_compression_astc);
+	CHECK_EXT(GL_WEBGL_compressed_texture_astc);
 
 	EXT_MISSING();
 }
